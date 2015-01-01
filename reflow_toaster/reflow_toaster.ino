@@ -90,8 +90,8 @@ void loop (){
 			state = 2;
 		}
 		delta = soack_temp - temperature;
-		if (delta < delta_temperature){ //simple PID control
-			map(delta, 0, delta_temperature, 128, 255);
+		if (delta < delta_temperature){ //simple P control
+			delta = map(delta, 0, delta_temperature, 128, 255);
 			OCR2B =  delta; //oven "ON" with proportional to delta partial power 
 		}
 		else OCR2B = 255; //oven "ON" full power
