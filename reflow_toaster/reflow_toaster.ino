@@ -1,8 +1,8 @@
 /*
 TAMI Reflow Controller
 Created by Zvi Schneider 15-09-2014
-Last update 26-12-2014
-update issues: improved remarks and print of state time
+Last update 04-01-2015
+update issues: adding handshake with "Processing" in order to display reflow graph on PC
 Hardware Version: "TAMI - Reflow Controller V5.sch"
 */
 #include <Servo.h>
@@ -26,6 +26,7 @@ int servo_pos;
 int state = 1; // There are 5 states: 1. ramp to soak, 2. soak, 3. ramp to peak, 4. cooling and 5. End
 int soak_start; // variable to hold start of soak state time.
 int state_start;// variable to hold start of state time.
+int tick_count = 0;//temperature read event counter. increments every 0.25 sec.
 
 //define names
 #define delta_temperature 5 // Start slowing the oven power "delta_temperature" Degrees before reaching soak temperature. This eliminates temperature overshot.
@@ -73,9 +74,9 @@ void setup(){
 
 void loop (){
 	if (state != 5){
-		Serial.print("Oven temperature = ");
+		Serial.print(tick_count++);
+		Serial.print(" ; Oven temperature = ");
 		Serial.print(temperature);
-		//		Serial.print (" ");
 	}
 
 	switch (state) {
@@ -90,14 +91,14 @@ void loop (){
 			state = 2;
 		}
 		delta = soack_temp - temperature;
-		if (delta < delta_temperature){ //simple P control
+		if (delta < delta_temperature){ //simple PID control
 			delta = map(delta, 0, delta_temperature, 128, 255);
 			OCR2B =  delta; //oven "ON" with proportional to delta partial power 
 		}
 		else OCR2B = 255; //oven "ON" full power
 		Serial.print(" ; state time = ");
 		Serial.print(millis()/1024 - state_start);
-		Serial.println (" ; State 1: Ramp to Soak");
+		Serial.println (" ; State 1, Ramp to Soak");
 		break;
 
 	case 2: // Soak
@@ -115,7 +116,7 @@ void loop (){
 		}
 		Serial.print(" ; state time = ");
 		Serial.print(millis()/1024 - state_start);
-		Serial.println (" ; State 2: Soak");
+		Serial.println (" ; State 2, Soak");
 		break;
 
 	case 3: // Ramp to Peak
@@ -129,7 +130,7 @@ void loop (){
 		}
 		Serial.print(" ; state time = ");
 		Serial.print(millis()/1024 - state_start);
-		Serial.println (" ; State 3: Ramp to Peak");
+		Serial.println (" ; State 3, Ramp to Peak");
 		break;
 
 	case 4: // End (Cooling)
@@ -139,7 +140,7 @@ void loop (){
 		if (temperature > 100){
 			Serial.print(" ; state time = ");
 			Serial.print(millis()/1024 - state_start);
-			Serial.println (" ; State 4: End (Cooling)");
+			Serial.println (" ; State 4, End (Cooling)");
 		}
 		else{
 			state = 5;
