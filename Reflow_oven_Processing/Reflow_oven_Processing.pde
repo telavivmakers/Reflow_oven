@@ -17,7 +17,8 @@ int i=0;
 void setup()
 {
   size(1200, 600);
-  port = new Serial(this, "COM8", 19700); // change COM# according to the actual port used by your Arduino
+  println(Serial.list());
+  port = new Serial(this, Serial.list()[2], 19700); // if your arduino COM# is not the 3rd in the list change the parameter in the parantesys.
   port.bufferUntil(cr); 
   font = loadFont("Arial-BoldItalicMT-100.vlw");
   textFont(font, 20);
