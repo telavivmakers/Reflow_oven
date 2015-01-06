@@ -1,5 +1,6 @@
 //Display reflow-oven temperature
 //Created by Zvi Schneider on 04-01-2015
+//Last updated 06-01-2015
 
 int lf = 10;    // Linefeed in ASCII
 int cr = 13;    // cariage return in ASCII
@@ -16,9 +17,9 @@ int i=0;
 
 void setup()
 {
-  size(1200, 600);
+  size(900, 600);
   println(Serial.list());
-  port = new Serial(this, Serial.list()[2], 19700); // if your arduino COM# is not the 3rd in the list change the parameter in the parantesys.
+  port = new Serial(this, Serial.list()[2], 19200); // if your arduino COM# is not the 3rd in the list change the parameter in the parantesys.
   port.bufferUntil(cr); 
   font = loadFont("Arial-BoldItalicMT-100.vlw");
   textFont(font, 20);
@@ -39,13 +40,13 @@ void draw()
       text(int(i)*50, x, 510-i*50);
     }
     text("[°C]", x, 530-i*50);
-    for (i=0; i<=20; i++) { // horizontal axis marking
+    for (i=0; i<=14; i++) { // horizontal axis marking
       x=20;
       if (i==0) x=45;
       if (i==1) x=30;      
       text(int(i)*50, x+i*50, 530);
     }
-    text("[Seconds]", 1075, 530);
+    text("[Seconds]", 760, 530);
   }
 
   text(data, 10, 20);// write the line of text at the top of the screen
