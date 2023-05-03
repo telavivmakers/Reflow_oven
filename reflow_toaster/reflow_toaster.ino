@@ -24,6 +24,7 @@ boolean toggle = 0;
 int servo_pos;
 int state = 1;      // There are 5 states: 1. ramp to soak, 2. soak, 3. ramp to peak, 4. cooling and 5. End
 int soak_start;     // variable to hold start of soak state time.
+int peak_start;     // variable to hold start of peak state time.
 int state_start;    // variable to hold start of state time.
 int tick_count = 0; //temperature read event counter. increments every 0.25 sec.
 float integral = 0; // I element of the PID
@@ -34,9 +35,10 @@ float integral = 0; // I element of the PID
 #define MAX6675_time 250  // The minimum MAX6675 temperature measuring time is 220 mili-sec. We will use 250 mili-sec.
 #define closeOvenDoor 1   // Servo angle for closed door
 #define openOvenDoor 140  // Servo angle for opened door
-#define soack_temp 150    // profile parameter
-#define soak_duration 100 // profile parameter
-#define peak_temp 230     // profile parameter
+#define soak_temp 150    // profile parameter
+#define soak_duration 75 // profile parameter
+#define peak_temp 210     // profile parameter
+#define peak_duration 66   // profile parameter
 
 void setup()
 {
@@ -75,7 +77,7 @@ void loop()
 {
   if (state != 5)
   {
-    Serial.print(tick_count++);
+    // Serial.print(tick_count++);
     Serial.print(" ; Oven temperature = ");
     Serial.print(temperature);
   }
@@ -84,7 +86,7 @@ void loop()
   {
 
   case 1: // Ramp to Soak
-    if (temperature < soack_temp)
+    if (temperature < soak_temp)
     {
       digitalWrite(LED2, HIGH);
     }
@@ -94,7 +96,7 @@ void loop()
       state_start = millis() / 1024;
       state = 2;
     }
-    delta = soack_temp - temperature;
+    delta = soak_temp - temperature;
     if (delta < delta_temperature)
     { //simple PID control
       integral = integral + 1;
@@ -109,7 +111,7 @@ void loop()
     break;
 
   case 2: // Soak
-    if (temperature < soack_temp)
+    if (temperature < soak_temp)
     {
       OCR2B = 100; //oven "ON" with partial power
       digitalWrite(LED2, HIGH);
@@ -121,6 +123,7 @@ void loop()
     }
     if ((millis() / 1024 - soak_start) > soak_duration)
     {
+      peak_start = millis() / 1024;
       state_start = millis() / 1024;
       state = 3;
     }
@@ -132,10 +135,16 @@ void loop()
   case 3: // Ramp to Peak
     if (temperature < peak_temp)
     {
-      OCR2B = 255;
+      OCR2B = 255; //oven "ON" with  power
       digitalWrite(LED2, HIGH);
     }
     else
+    {
+      // OCR2B = 0; //oven "OFF"
+      // digitalWrite(LED2, LOW);
+    }
+    
+    if ((millis() / 1024 - peak_start) > peak_duration)
     {
       state_start = millis() / 1024;
       state = 4;
