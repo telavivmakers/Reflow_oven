@@ -4,8 +4,8 @@ TAMI Reflow Controller
  Last update 06-01-2015
  */
 
-#include <Servo.h>
-Servo myservo; // Initialize the SERVO library
+// #include <Servo.h>
+// Servo myservo; // Initialize the SERVO library
 
 //assign Arduino pins
 #define LED2 2         // External LED Pin
@@ -37,8 +37,8 @@ float integral = 0; // I element of the PID
 #define openOvenDoor 140  // Servo angle for opened door
 #define soak_temp 150    // profile parameter
 #define soak_duration 75 // profile parameter
-#define peak_temp 210     // profile parameter
-#define peak_duration 66   // profile parameter
+#define peak_temp 230     // profile parameter
+// profile parameter
 
 void setup()
 {
@@ -51,7 +51,7 @@ void setup()
   //==================================
 
   Serial.begin(19200);
-  myservo.attach(door_control); // attaches the door control servo to the servo object
+  // myservo.attach(door_control); // attaches the door control servo to the servo object
   pinMode(oven, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED13, OUTPUT);
@@ -69,7 +69,7 @@ void setup()
   temperature = temperature / 4;
   //======================================
 
-  myservo.write(closeOvenDoor); // Close the oven door
+  // myservo.write(closeOvenDoor); // Close the oven door
   state_start = millis() / 1024;
 }
 
@@ -142,20 +142,17 @@ void loop()
     {
       // OCR2B = 0; //oven "OFF"
       // digitalWrite(LED2, LOW);
-    }
-    
-    if ((millis() / 1024 - peak_start) > peak_duration)
-    {
-      state_start = millis() / 1024;
       state = 4;
     }
+    
+
     Serial.print(" ; state time = ");
     Serial.print(millis() / 1024 - state_start);
     Serial.println(" ; State 3, Ramp to Peak");
     break;
 
   case 4: // End (Cooling)
-    myservo.write(openOvenDoor);
+    // myservo.write(openOvenDoor);
     OCR2B = 0;
     digitalWrite(LED2, toggle);
     if (temperature > 100)
