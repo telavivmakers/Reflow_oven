@@ -16,8 +16,8 @@ U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/U8X8_PIN_NONE); // https://gith
 // connect OLED SCK --> A5
 // connectr OLED SDA --> A4
 
-#define LED2 2   // External LED Pin
-#define POT A3   // Potentiometer Pin
+#define LED2 2 // External LED Pin
+#define POT A3 // Potentiometer Pin
 
 #define CS 11   // MAX6675 Chip Select
 #define SO 10   // MAX6675 Serial data Output a.k.a MISO
@@ -62,14 +62,16 @@ void setup()
   //==================================
 
   Serial.begin(115200);
-  // myservo.attach(door_control); // attaches the door control servo to the servo object
-  pinMode(oven_SSR_pin, OUTPUT);
-  pinMode(POT, INPUT);
 
+  pinMode(POT, INPUT);
+  pinMode(oven_SSR_pin, OUTPUT);
+
+  // TEMPERATURE SENSOR SETUP
   pinMode(CS, OUTPUT);
   pinMode(SO, INPUT);
   pinMode(SCLK, OUTPUT);
 
+  // led setup
   pinMode(LED2, OUTPUT);
 
   // OLED setup
@@ -86,8 +88,14 @@ void setup()
   temperature = temperature / 4;
   //======================================
 
-  // myservo.write(closeOvenDoor); // Close the oven door
   state_start = millis() / 1024;
+
+  // if pot is set to 0 on start move to manual mode, stage 99
+  pot_value = analogRead(POT); // read the potentiometer value
+  if (pot_value == 0)
+  {
+    state = 99;
+  }
 }
 
 void loop()
@@ -223,6 +231,22 @@ void loop()
       state = 5;
       Serial.println("*** End of Game ***");
     }
+    break;
+
+  case 99:
+    // Manual mode, get the potentiometer value
+    // and set the oveen power
+    if (temperature < pot_value)
+    {
+      OCR2B = 255; // oven "ON" with full power
+      digitalWrite(LED2, HIGH);
+    }
+    else
+    {
+      OCR2B = 0; // oven "OFF"
+      digitalWrite(LED2, LOW);
+    }
+    Serial.println(" ; State 99, manual mode");
     break;
 
   case 5:
