@@ -17,8 +17,7 @@ U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/U8X8_PIN_NONE); // https://gith
 // connectr OLED SDA --> A4
 
 #define LED2 2   // External LED Pin
-#define LED13 13 // Arduino onboard LED Pin
-#define POT A3 // Potentiometer Pin
+#define POT A3   // Potentiometer Pin
 
 #define CS 11   // MAX6675 Chip Select
 #define SO 10   // MAX6675 Serial data Output a.k.a MISO
@@ -72,7 +71,6 @@ void setup()
   pinMode(SCLK, OUTPUT);
 
   pinMode(LED2, OUTPUT);
-  pinMode(LED13, OUTPUT);
 
   // OLED setup
   u8x8.begin();
@@ -109,16 +107,10 @@ void loop()
 
   if (state != 5)
   {
-    // Serial.print(tick_count++);
     Serial.print(" ; Oven temperature = ");
     Serial.print(temperature);
-    Serial.print(" ");
+    Serial.print(" set: ");
     Serial.print(pot_value);
-
-    // u8x8.setCursor(0, 1);
-    // u8x8.print("STAGE: ");
-    // u8x8.setCursor(12, 1);
-    // u8x8.print(counter);
 
     int row = 0;
     u8x8.setCursor(0, row);
@@ -240,15 +232,13 @@ void loop()
     state = 5;
   }
 
-  digitalWrite(LED13, toggle);
   toggle = ~toggle;
 
-   while ((millis() - last_time) < MAX6675_time)
+  while ((millis() - last_time) < MAX6675_time)
     ; // wait for MAX6657 temperature measurement
   last_time = millis();
   temperature = read_MAX6657();
   temperature = temperature / 4;
-
 }
 
 int read_MAX6657()
