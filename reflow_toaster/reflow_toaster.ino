@@ -18,6 +18,7 @@ U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/U8X8_PIN_NONE); // https://gith
 
 #define LED2 2   // External LED Pin
 #define LED13 13 // Arduino onboard LED Pin
+#define POT A3 // Potentiometer Pin
 
 #define CS 11   // MAX6675 Chip Select
 #define SO 10   // MAX6675 Serial data Output a.k.a MISO
@@ -28,6 +29,7 @@ U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/U8X8_PIN_NONE); // https://gith
 
 // declare variables
 float temperature;
+int pot_value;
 int delta;
 unsigned long last_time;
 boolean toggle = 0;
@@ -63,6 +65,7 @@ void setup()
   Serial.begin(115200);
   // myservo.attach(door_control); // attaches the door control servo to the servo object
   pinMode(oven_SSR_pin, OUTPUT);
+  pinMode(POT, INPUT);
 
   pinMode(CS, OUTPUT);
   pinMode(SO, INPUT);
@@ -91,11 +94,26 @@ void setup()
 
 void loop()
 {
+  pot_value = analogRead(POT); // read the potentiometer value
+  pot_value = map(pot_value, 0, 1023, 0, 300);
+  // convert pot_value to always be 4-letter string
+  String pot_value_str = String(pot_value);
+  if (pot_value < 10)
+  {
+    pot_value_str = "  " + pot_value_str;
+  }
+  else if (pot_value < 100)
+  {
+    pot_value_str = " " + pot_value_str;
+  }
+
   if (state != 5)
   {
     // Serial.print(tick_count++);
     Serial.print(" ; Oven temperature = ");
     Serial.print(temperature);
+    Serial.print(" ");
+    Serial.print(pot_value);
 
     // u8x8.setCursor(0, 1);
     // u8x8.print("STAGE: ");
@@ -104,15 +122,18 @@ void loop()
 
     int row = 0;
     u8x8.setCursor(0, row);
-    u8x8.print(" AtTami ");
+    u8x8.print(" ATtami ");
 
     row += 2;
     u8x8.setCursor(0, row);
-    u8x8.print("--------");
+    u8x8.print("Set");
+
+    u8x8.setCursor(8, row);
+    u8x8.print(pot_value_str);
 
     row += 2;
     u8x8.setCursor(0, row);
-    u8x8.print("Temp");
+    u8x8.print("Get");
 
     u8x8.setCursor(11, row);
     u8x8.print(int(temperature));
@@ -222,11 +243,7 @@ void loop()
   digitalWrite(LED13, toggle);
   toggle = ~toggle;
 
-  /*
-  Enter final code here
-    */
-
-  while ((millis() - last_time) < MAX6675_time)
+   while ((millis() - last_time) < MAX6675_time)
     ; // wait for MAX6657 temperature measurement
   last_time = millis();
   temperature = read_MAX6657();
