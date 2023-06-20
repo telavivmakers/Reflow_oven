@@ -135,7 +135,7 @@ void loop()
     u8x8.setCursor(0, row);
     u8x8.print("Get");
 
-    u8x8.setCursor(11, row);
+    u8x8.setCursor(10, row);
     u8x8.print(int(temperature));
 
     row += 2;
