@@ -170,6 +170,28 @@ void loop()
 
     state_time_1_str = "State: " + String(state) + "/5";
 
+    if (state == 2)
+    {
+      int soak_left_value = soak_duration - soak_time;
+      String soak_left_str = String(soak_left_value);
+      if (soak_left_value < 10)
+      {
+        state_time_1_str += "   (" + soak_left_str + ")";
+      }
+      else
+      {
+        state_time_1_str += "  (" + soak_left_str + ")";
+      }
+    }
+    else
+    {
+      int n_chars = state_time_1_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_1_str = state_time_1_str + " ";
+      }
+    }
+
     if (state == 1)
     {
       temp_set_value = soak_temp;
@@ -186,24 +208,8 @@ void loop()
     {
       temp_set_value = soak_temp;
 
-      int soak_left_value = soak_duration - soak_time;
-      String soak_left_str = String(soak_left_value);
-      if (soak_left_value < 10)
-      {
-        state_time_1_str += "   (" + soak_left_str + ")";
-      }
-      else
-      {
-        state_time_1_str += "  (" + soak_left_str + ")";
-      }
-      int n_chars = state_time_1_str.length();
-      for (int i = 0; i < n_cols - n_chars; i++)
-      {
-        state_time_1_str = state_time_1_str + " ";
-      }
-
       state_time_2_str = "Soak...";
-      n_chars = state_time_2_str.length();
+      int n_chars = state_time_2_str.length();
       for (int i = 0; i < n_cols - n_chars; i++)
       {
         state_time_2_str = state_time_2_str + " ";
