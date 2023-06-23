@@ -27,18 +27,31 @@ U8X8_SH1106_128X64_NONAME_HW_I2C u8x8(/* reset=*/U8X8_PIN_NONE); // https://gith
 // #define door_control 9 //oven door control servo motor
 
 // declare variables
-float temperature;
-int pot_value;
+int temp_get_value;
+int temp_set_value_old;
+int temp_set_value;
 int delta;
 unsigned long last_time;
 boolean toggle = 0;
 int servo_pos;
-int state = 1;      // There are 5 states: 1. ramp to soak, 2. soak, 3. ramp to peak, 4. cooling and 5. End
+int state;          // There are 5 states: 1. ramp to soak, 2. soak, 3. ramp to peak, 4. cooling and 5. End
 int soak_start;     // variable to hold start of soak state time.
+int soak_time;
 int peak_start;     // variable to hold start of peak state time.
 int state_start;    // variable to hold start of state time.
 int tick_count = 0; // temperature read event counter. increments every 0.25 sec.
 float integral = 0; // I element of the PID
+int n_cols;
+
+long manual_mode_millis_value;
+long manual_mode_millis_start;
+long manual_mode_all_seconds_value;
+int manual_mode_minutes_value;
+String manual_mode_minutes_str;
+int manual_mode_seconds_value;
+String manual_mode_seconds_str;
+
+String mode_str, temp_str, state_time_1_str, state_time_2_str;
 
 // define names
 #define delta_temperature 12 // Start slowing the oven power "delta_temperature" Degrees before reaching soak temperature. This eliminates temperature overshot.
@@ -60,7 +73,7 @@ void setup()
   TCCR2B = (1 << CS22) | (1 << CS21) | (1 << CS20); // Select clkT2S/1024 From Prescaler.
   OCR2B = 255;                                      // oven "ON" with full power. OCR2B value controls the oven duty cycle between 0 to 100%. 255 sets oven power to 100%.
   //==================================
-
+  
   Serial.begin(115200);
 
   pinMode(POT, INPUT);
@@ -76,7 +89,10 @@ void setup()
 
   // OLED setup
   u8x8.begin();
-  u8x8.setFont(u8x8_font_px437wyse700a_2x2_r);
+  //u8x8.setFont(u8x8_font_px437wyse700a_2x2_r);
+  u8x8.setFont(u8x8_font_8x13B_1x2_f);
+  //u8x8.setFont(u8x8_font_pcsenior_f);
+  n_cols = u8x8.getCols();
 
   // Read the temperature for the 1st time
   //======================================
@@ -84,73 +100,193 @@ void setup()
   digitalWrite(CS, HIGH); // start new MAX6657 temperature conversion
   delay(250);
   last_time = millis();
-  temperature = read_MAX6657();
-  temperature = temperature / 4;
+  temp_get_value = read_MAX6657();
+  temp_get_value = temp_get_value / 4;
   //======================================
 
   state_start = millis() / 1024;
 
   // if pot is set to 0 on start move to manual mode, stage 99
-  pot_value = analogRead(POT); // read the potentiometer value
-  if (pot_value == 0)
+  temp_set_value = analogRead(POT); // read the potentiometer value
+  if (temp_set_value < 5)
   {
     state = 99;
   }
+  else
+  {
+    state = 1;
+  }
+
+  manual_mode_millis_start = 0;
 }
 
 void loop()
-{
-  pot_value = analogRead(POT); // read the potentiometer value
-  pot_value = map(pot_value, 0, 1023, 0, 300);
-  // convert pot_value to always be 4-letter string
-  String pot_value_str = String(pot_value);
-  if (pot_value < 10)
+{ 
+  if (state == 99)
   {
-    pot_value_str = "  " + pot_value_str;
+    mode_str = "Mode:  MANUAL";
+
+    temp_set_value_old = temp_set_value;
+    temp_set_value = analogRead(POT) / 4;
+
+    manual_mode_millis_value = millis();
+
+    if (temp_set_value < 5)
+    {
+      temp_set_value = 0;
+      manual_mode_minutes_str = "--";
+      manual_mode_seconds_str = "--";
+    }
+    else
+    { 
+      if (abs(temp_set_value_old - temp_set_value) > 5)
+      {
+        manual_mode_millis_start = manual_mode_millis_value;
+      }
+      
+      manual_mode_all_seconds_value = (manual_mode_millis_value - manual_mode_millis_start) / 1000;
+      manual_mode_minutes_value = manual_mode_all_seconds_value / 60;
+      manual_mode_seconds_value = manual_mode_all_seconds_value % 60;
+
+      manual_mode_minutes_str = String(manual_mode_minutes_value);
+      if (manual_mode_minutes_value < 10)
+      {
+        manual_mode_minutes_str = "0" + manual_mode_minutes_str;
+      }
+
+      manual_mode_seconds_str = String(manual_mode_seconds_value);
+      if (manual_mode_seconds_value < 10)
+      {
+        manual_mode_seconds_str = "0" + manual_mode_seconds_str;
+      }
+    }
+
+    state_time_1_str = "Time:  " + manual_mode_minutes_str + ":" + manual_mode_seconds_str;
+    state_time_2_str = "";
   }
-  else if (pot_value < 100)
+  else
   {
-    pot_value_str = " " + pot_value_str;
-  }
+    mode_str = "Mode:  AUTO";
 
-  if (state != 5)
+    state_time_1_str = "State: " + String(state) + "/5";
+
+    if (state == 1)
+    {
+      temp_set_value = soak_temp;
+
+      state_time_2_str = "Ramp to Soak...";
+      int n_chars = state_time_2_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_2_str = state_time_2_str + " ";
+      }
+      
+    }
+    else if (state == 2)
+    {
+      temp_set_value = soak_temp;
+
+      int soak_left_value = soak_duration - soak_time;
+      String soak_left_str = String(soak_left_value);
+      if (soak_left_value < 10)
+      {
+        state_time_1_str += "   (" + soak_left_str + ")";
+      }
+      else
+      {
+        state_time_1_str += "  (" + soak_left_str + ")";
+      }
+      int n_chars = state_time_1_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_1_str = state_time_1_str + " ";
+      }
+
+      state_time_2_str = "Soak...";
+      n_chars = state_time_2_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_2_str = state_time_2_str + " ";
+      }
+    }
+    else if (state == 3)
+    {
+      temp_set_value = peak_temp;
+
+      state_time_2_str = "Ramp to Peak...";
+      int n_chars = state_time_2_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_2_str = state_time_2_str + " ";
+      }
+    }
+    else if (state == 4)
+    {
+      temp_set_value = 100;
+
+      state_time_2_str = "Cooling...";
+      int n_chars = state_time_2_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_2_str = state_time_2_str + " ";
+      }
+    }
+    else if (state == 5)
+    {
+      temp_set_value = 0;
+
+      state_time_2_str = "End :)";
+      int n_chars = state_time_2_str.length();
+      for (int i = 0; i < n_cols - n_chars; i++)
+      {
+        state_time_2_str = state_time_2_str + " ";
+      }
+    }
+  }
+  
+  String temp_get_value_str = String(temp_get_value) + "\xb0";
+  if (temp_get_value < 10)
   {
-    Serial.print(" ; Oven temperature = ");
-    Serial.print(temperature);
-    Serial.print(" set: ");
-    Serial.print(pot_value);
-
-    int row = 0;
-    u8x8.setCursor(0, row);
-    u8x8.print(" ATtami ");
-
-    row += 2;
-    u8x8.setCursor(0, row);
-    u8x8.print("Set");
-
-    u8x8.setCursor(8, row);
-    u8x8.print(pot_value_str);
-
-    row += 2;
-    u8x8.setCursor(0, row);
-    u8x8.print("Get");
-
-    u8x8.setCursor(10, row);
-    u8x8.print(int(temperature));
-
-    row += 2;
-    u8x8.setCursor(0, row);
-    u8x8.print("State");
-
-    u8x8.setCursor(11, row);
-    u8x8.print(state);
+    temp_get_value_str = temp_get_value_str + "  ";
   }
+  else if (temp_get_value < 100)
+  {
+    temp_get_value_str = temp_get_value_str + " ";
+  }
+
+  String temp_set_value_str = String(temp_set_value) + "\xb0";
+  if (temp_set_value < 10)
+  {
+    temp_set_value_str = "  " + temp_set_value_str;
+  }
+  else if (temp_set_value < 100)
+  {
+    temp_set_value_str = " " + temp_set_value_str;
+  }
+
+  temp_str = "Temp:  " + temp_get_value_str + ">" + temp_set_value_str;
+
+  int row = 0;
+  u8x8.setCursor(0, row);
+  u8x8.print(mode_str);
+  
+  row += 2;
+  u8x8.setCursor(0, row);
+  u8x8.print(temp_str);
+
+  row += 2;
+  u8x8.setCursor(0, row);
+  u8x8.print(state_time_1_str);
+
+  row += 2;
+  u8x8.setCursor(0, row);
+  u8x8.print(state_time_2_str);
 
   switch (state)
   {
 
   case 1: // Ramp to Soak
-    if (temperature < soak_temp)
+    if (temp_get_value < soak_temp)
     {
       digitalWrite(LED2, HIGH);
     }
@@ -160,7 +296,7 @@ void loop()
       state_start = millis() / 1024;
       state = 2;
     }
-    delta = soak_temp - temperature;
+    delta = soak_temp - temp_get_value;
     if (delta < delta_temperature)
     { // simple PID control
       integral = integral + 1;
@@ -177,7 +313,7 @@ void loop()
     break;
 
   case 2: // Soak
-    if (temperature < soak_temp)
+    if (temp_get_value < soak_temp)
     {
       OCR2B = 100; // oven "ON" with partial power
       digitalWrite(LED2, HIGH);
@@ -187,7 +323,8 @@ void loop()
       OCR2B = 0; // oven "OFF"
       digitalWrite(LED2, LOW);
     }
-    if ((millis() / 1024 - soak_start) > soak_duration)
+    soak_time = millis() / 1024 - soak_start;
+    if (soak_time > soak_duration)
     {
       peak_start = millis() / 1024;
       state_start = millis() / 1024;
@@ -199,7 +336,7 @@ void loop()
     break;
 
   case 3: // Ramp to Peak
-    if (temperature < peak_temp)
+    if (temp_get_value < peak_temp)
     {
       OCR2B = 255; // oven "ON" with  power
       digitalWrite(LED2, HIGH);
@@ -220,7 +357,7 @@ void loop()
     // myservo.write(openOvenDoor);
     OCR2B = 0;
     digitalWrite(LED2, toggle);
-    if (temperature > 100)
+    if (temp_get_value > 100)
     {
       Serial.print(" ; state time = ");
       Serial.print(millis() / 1024 - state_start);
@@ -236,7 +373,7 @@ void loop()
   case 99:
     // Manual mode, get the potentiometer value
     // and set the oveen power
-    if (temperature < pot_value)
+    if (temp_get_value < temp_set_value)
     {
       OCR2B = 255; // oven "ON" with full power
       digitalWrite(LED2, HIGH);
@@ -256,13 +393,28 @@ void loop()
     state = 5;
   }
 
+  if (state != 5)
+  {
+    Serial.print("Temp (degrees): ");
+    Serial.print(temp_get_value);
+    Serial.print(" / ");
+    Serial.print(temp_set_value);
+    Serial.print(" (");
+    Serial.print(temp_set_value_old);
+    Serial.print(")");
+    Serial.print("; time base (sec): ");
+    Serial.print(manual_mode_millis_start);
+    Serial.print("; time (sec): ");
+    Serial.print(manual_mode_all_seconds_value);
+  }
+
   toggle = ~toggle;
 
   while ((millis() - last_time) < MAX6675_time)
     ; // wait for MAX6657 temperature measurement
   last_time = millis();
-  temperature = read_MAX6657();
-  temperature = temperature / 4;
+  temp_get_value = read_MAX6657();
+  temp_get_value = temp_get_value / 4;
 }
 
 int read_MAX6657()
